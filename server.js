@@ -1,44 +1,39 @@
-import express from "express";
-import cors from "cors";
-import bodyParser from "body-parser";
+import http from "http";
+import Koa from "koa";
+import Router from "koa-router";
+import cors from "koa2-cors";
+import { koaBody } from "koa-body";
 
-const app = express();
+const app = new Koa();
 
 app.use(cors());
-app.use(
-  bodyParser.json({
-    type(req) {
-      return true;
-    },
-  })
-);
-app.use(function (req, res, next) {
-  res.setHeader('Content-Type', 'application/json');
-  next();
-});
+app.use(koaBody({json: true}));
 
 const notes = [];
 let nextId = 1;
 
-app.get("/notes", (req, res) => {
-  res.send(JSON.stringify(notes));
+const router = new Router();
+
+router.get('/notes', async (ctx, next) => {
+    ctx.response.body = notes;
 });
 
-app.post("/notes", (req, res) => {
-  notes.push({ ...req.body, id: nextId++ });
-  res.status(204);
-  res.end();
+router.post('/notes', async(ctx, next) => {
+    notes.push({content: ctx.request.body, id: nextId++});
+    ctx.response.status = 204;
 });
 
-app.delete("/notes/:id", (req, res) => {
-  const noteId = Number(req.params.id);
-  const index = notes.findIndex((o) => o.id === noteId);
-  if (index !== -1) {
-    notes.splice(index, 1);
-  }
-  res.status(204);
-  res.end();
+router.delete('/notes/:id', async(ctx, next) => {
+    const noteId = Number(ctx.params.id);
+    const index = notes.findIndex(o => o.id === noteId);
+    if (index !== -1) {
+        notes.splice(index, 1);
+    }
+    ctx.response.status = 204;
 });
+
+app.use(router.routes()).use(router.allowedMethods());
 
 const port = 7070;
-app.listen(port, () => console.log(`The server is running on http://localhost:${port}`));
+const server = http.createServer(app.callback());
+server.listen(port, () => console.log('server started'));
